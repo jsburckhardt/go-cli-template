@@ -31,7 +31,7 @@ jobs:
           hashDevcontainer=$(sha1sum .devcontainer/Dockerfile | head -c 40)
           echo "validated .devcontainer/Dockerfile and got hash: $hashDevcontainer"
           echo "hashDevcontainer=$hashDevcontainer" >> $GITHUB_OUTPUT
-          if ! docker manifest inspect "ghcr.io/redbacklabs/sample_devcontainer:$hashDevcontainer" > /dev/null 2>&1; then
+          if ! docker manifest inspect "ghcr.io/jsburckhardt/sample_devcontainer:$hashDevcontainer" > /dev/null 2>&1; then
             echo "docker manifest doesn't exist need to push image."
             echo "IfRunDockerBuild=run" >> $GITHUB_OUTPUT
           else
@@ -44,7 +44,7 @@ jobs:
           context: .devcontainer
           file: .devcontainer/Dockerfile
           push: true
-          tags: ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/redbacklabs/sample_devcontainer:latest,ghcr.io/jsburckhardt/sample_devcontainer:$GITHUB_RUN_NUMBER
+          tags: ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/jsburckhardt/sample_devcontainer:latest,ghcr.io/jsburckhardt/sample_devcontainer:$GITHUB_RUN_NUMBER
   Tests:
     needs: BuildDevContainer
     runs-on: ubuntu-latest
@@ -60,8 +60,8 @@ jobs:
       - name: Pull and start devcontainer
         id: start_devcontainer
         run: |
-          docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
-          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+          docker pull ghcr.io/jsburckhardt/sample_devcontainer:latest
+          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/jsburckhardt/sample_devcontainer:latest)
           docker start "$container_id"
           docker exec "$container_id" go mod download
           docker exec "$container_id" go run main.go --help
@@ -122,8 +122,8 @@ jobs:
           GIT_AUTHOR_EMAIL: semantic-bot@noeamil.com
         run: |
           chmod -R 777 $GITHUB_WORKSPACE
-          docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
-          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+          docker pull ghcr.io/jsburckhardt/sample_devcontainer:latest
+          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/jsburckhardt/sample_devcontainer:latest)
           docker start "$container_id"
           docker exec "$container_id" go mod download
           docker exec "$container_id" git config --global --add safe.directory /workspace
@@ -135,8 +135,8 @@ jobs:
       # - name: build
       #   if: env.NEXT_RELEASE != ''
       #   run: |
-      #     docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
-      #     container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+      #     docker pull ghcr.io/jsburckhardt/sample_devcontainer:latest
+      #     container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/jsburckhardt/sample_devcontainer:latest)
       #     docker start "$container_id"
       #     docker exec "$container_id" go mod download
       #     docker exec "$container_id" go run main.go --help
