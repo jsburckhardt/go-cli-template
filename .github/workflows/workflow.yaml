@@ -37,6 +37,7 @@ jobs:
           else
             echo "docker manifest exists. No update for devcontainer."
           fi
+          echo "GITHUB_RUN_NUMBER=$GITHUB_RUN_NUMBER" >> $GITHUB_OUTPUT
       - name: Build and push devcontainer
         if: ${{ steps.check_devcontainer.outputs.IfRunDockerBuild == 'run' }}
         uses: docker/build-push-action@v2
@@ -44,7 +45,7 @@ jobs:
           context: .devcontainer
           file: .devcontainer/Dockerfile
           push: true
-          tags: ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/jsburckhardt/sample_devcontainer:latest,ghcr.io/jsburckhardt/sample_devcontainer:$GITHUB_RUN_NUMBER
+          tags: ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/jsburckhardt/sample_devcontainer:latest,ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.GITHUB_RUN_NUMBER }}
   Tests:
     needs: BuildDevContainer
     runs-on: ubuntu-latest
