@@ -1,0 +1,6 @@
+#Tests
+TEST=Test Field
+
+DEVICE_HOSTNAME=theblackout-1
+PI_REGISTRY_PORT=5000
+PI_DOCKER_REGISTRY=theblackout-1:5000/

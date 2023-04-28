@@ -1,0 +1,146 @@
+name: sample
+on:
+  push:
+    branches:
+    - main
+    - dev
+    - feat/*
+  pull_request:
+    branches:
+    - main
+    - dev
+
+jobs:
+  BuildDevContainer:
+    runs-on: ubuntu-latest
+    steps:
+      # run script to build devcontainer
+      - uses: actions/checkout@v3
+      # login to ghcr to push image
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # run validation to create devcontainer
+      - name: Check devcontainer
+        id: check_devcontainer
+        run: |
+          env
+          hashDevcontainer=$(sha1sum .devcontainer/Dockerfile | head -c 40)
+          echo "validated .devcontainer/Dockerfile and got hash: $hashDevcontainer"
+          echo "hashDevcontainer=$hashDevcontainer" >> $GITHUB_OUTPUT
+          if ! docker manifest inspect "ghcr.io/redbacklabs/sample_devcontainer:$hashDevcontainer" > /dev/null 2>&1; then
+            echo "docker manifest doesn't exist need to push image."
+            echo "IfRunDockerBuild=run" >> $GITHUB_OUTPUT
+          else
+            echo "docker manifest exists. No update for devcontainer."
+          fi
+      - name: Build and push devcontainer
+        if: ${{ steps.check_devcontainer.outputs.IfRunDockerBuild == 'run' }}
+        uses: docker/build-push-action@v2
+        with:
+          context: .devcontainer
+          file: .devcontainer/Dockerfile
+          push: true
+          tags: ghcr.io/redbacklabs/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/redbacklabs/sample_devcontainer:latest,ghcr.io/redbacklabs/sample_devcontainer:$GITHUB_RUN_NUMBER
+  Tests:
+    needs: BuildDevContainer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # pull devcontainer
+      - name: Pull and start devcontainer
+        id: start_devcontainer
+        run: |
+          docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
+          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+          docker start "$container_id"
+          docker exec "$container_id" go mod download
+          docker exec "$container_id" go run main.go --help
+          echo "container_id=$container_id" >> $GITHUB_OUTPUT
+      - name: lint
+        run: |
+          container_id=${{ steps.start_devcontainer.outputs.container_id }}
+          docker exec "$container_id" git config --global --add safe.directory /workspace
+          docker exec "$container_id" make lint
+      - name: test
+        run: |
+          chmod -R 777 $GITHUB_WORKSPACE
+          container_id=${{ steps.start_devcontainer.outputs.container_id }}
+          docker exec "$container_id" git config --global --add safe.directory /workspace
+          docker exec "$container_id" make test-ci
+      - name: publish JUnit test results and fail on error
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: report.xml
+          fail_on_error: true
+      - name: Code Coverage Report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: ./coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '30 80'
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
+      - name: Write to Job Summary
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
+  release:
+    needs: [Tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: create semantic release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GIT_AUTHOR_NAME: semantic-bot
+          GIT_AUTHOR_EMAIL: semantic-bot@noeamil.com
+        run: |
+          chmod -R 777 $GITHUB_WORKSPACE
+          docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
+          container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+          docker start "$container_id"
+          docker exec "$container_id" go mod download
+          docker exec "$container_id" git config --global --add safe.directory /workspace
+          export CONTAINER_ID=$container_id
+          npm install @semantic-release/exec
+          npm install @semantic-release/github
+          npm install @semantic-release/git @semantic-release/changelog -D
+          npx semantic-release
+      # - name: build
+      #   if: env.NEXT_RELEASE != ''
+      #   run: |
+      #     docker pull ghcr.io/redbacklabs/sample_devcontainer:latest
+      #     container_id=$(docker create -w /workspace -v $GITHUB_WORKSPACE:/workspace -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/redbacklabs/sample_devcontainer:latest)
+      #     docker start "$container_id"
+      #     docker exec "$container_id" go mod download
+      #     docker exec "$container_id" go run main.go --help
+      #     export RELEASE=${NEXT_RELEASE}
+      #     echo version: $RELEASE
+      #     echo container_id: "$container_id"
+      #     docker exec "$container_id" bash -c "export RELEASE=$RELEASE; make build"
