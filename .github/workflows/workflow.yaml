@@ -28,7 +28,7 @@ jobs:
         id: check_devcontainer
         run: |
           env
-          hashDevcontainer=$(sha1sum .devcontainer/Dockerfile | head -c 40)
+          hashDevcontainer=$(sha1sum .devcontainer/devcontainer.json | head -c 40)
           echo "validated .devcontainer/Dockerfile and got hash: $hashDevcontainer"
           echo "hashDevcontainer=$hashDevcontainer" >> $GITHUB_OUTPUT
           if ! docker manifest inspect "ghcr.io/jsburckhardt/sample_devcontainer:$hashDevcontainer" > /dev/null 2>&1; then
