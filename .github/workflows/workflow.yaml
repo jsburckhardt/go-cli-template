@@ -44,7 +44,7 @@ jobs:
           context: .devcontainer
           file: .devcontainer/Dockerfile
           push: true
-          tags: ghcr.io/redbacklabs/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/redbacklabs/sample_devcontainer:latest,ghcr.io/redbacklabs/sample_devcontainer:$GITHUB_RUN_NUMBER
+          tags: ghcr.io/jsburckhardt/sample_devcontainer:${{ steps.check_devcontainer.outputs.hashDevcontainer }},ghcr.io/redbacklabs/sample_devcontainer:latest,ghcr.io/jsburckhardt/sample_devcontainer:$GITHUB_RUN_NUMBER
   Tests:
     needs: BuildDevContainer
     runs-on: ubuntu-latest
